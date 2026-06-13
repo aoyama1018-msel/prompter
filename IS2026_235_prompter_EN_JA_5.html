@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>INCOSE IS2026 #235 — Read-aloud Prompter (EN / 日本語)</title>
+<style>
+  :root{
+    --bg:#0f2e3d;--surface:#143a4c;--surface2:#1b4659;--line:#2a5366;
+    --read:#5c7b88;--normal:#b6c8d0;--active:#f6f1e7;
+    --amber:#e8a13a;--amber-dim:rgba(232,161,58,.16);--ctrl:#e7eef1;--fs:40px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+  html,body{margin:0;height:100%;background:var(--bg);overscroll-behavior:none;
+    -webkit-text-size-adjust:100%;text-size-adjust:100%;}
+  body{font-family:-apple-system,"Helvetica Neue","Segoe UI","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    color:var(--normal);display:flex;flex-direction:column;height:100dvh;height:100vh;}
+  header{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:max(8px,env(safe-area-inset-top)) 14px 8px;
+    background:linear-gradient(180deg,var(--surface),rgba(20,58,76,0));}
+  .title{font-size:13px;letter-spacing:.04em;color:#8fb0bc;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;}
+  .vstat{flex:0 0 auto;font-size:12px;font-weight:700;padding:7px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface2);color:#8fb0bc;white-space:nowrap;}
+  .vstat.live{color:#0f2e3d;background:var(--amber);border-color:var(--amber);}
+  .vstat.wait{color:var(--amber);background:transparent;border-color:var(--amber);}
+  .parts{display:flex;gap:6px;flex:0 0 auto;}
+  .part{min-width:40px;height:40px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface2);color:var(--ctrl);font-size:15px;font-weight:600;}
+  .part:active{background:var(--amber);color:#0f2e3d;border-color:var(--amber);}
+  main{position:relative;flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;
+    overscroll-behavior:contain;}
+  .guide{position:fixed;left:0;right:0;top:46%;height:0;z-index:5;pointer-events:none;
+    border-top:2px solid var(--amber);opacity:.26;}
+  .guide::before{content:"";position:absolute;left:10px;top:-9px;border-style:solid;
+    border-width:9px 0 9px 13px;border-color:transparent transparent transparent var(--amber);opacity:.9;}
+  #doc{padding:28vh 7vw 70vh;max-width:1000px;margin:0 auto;}
+  .blk{font-size:var(--fs);line-height:1.9;letter-spacing:.01em;transition:color .2s,background .2s;
+    border-radius:14px;padding:.12em .5em;margin:.06em -.5em;}
+  .sp{color:var(--normal);}
+  .sp.read{color:var(--read);}
+  .sp.active{color:var(--active);background:var(--amber-dim);}
+  .gloss{color:#7e96a1;font-size:calc(var(--fs)*.58);line-height:1.55;margin:-.02em -.5em .55em;padding:0 .5em;}
+  .gloss.read{color:#5c7280;}
+  .h{color:#9fd0ff;font-size:calc(var(--fs)*.76);font-weight:700;margin:1.4em -.5em .4em;letter-spacing:.03em;}
+  .slide{color:var(--amber);font-size:calc(var(--fs)*.62);font-weight:700;margin:1.05em -.5em .25em;letter-spacing:.01em;}
+  .slide .tm{color:#8fb0bc;font-weight:600;font-size:.82em;}
+  .slide .j{display:block;color:#caa86a;font-weight:600;font-size:.84em;margin-top:.06em;}
+  .note{color:#7e96a1;font-size:calc(var(--fs)*.56);line-height:1.62;margin:.2em -.5em .5em;}
+  .note b{color:#9fd0ff;}
+  footer{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;
+    padding:8px 12px max(8px,env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,var(--surface),rgba(20,58,76,0));border-top:1px solid var(--line);}
+  .grp{display:flex;gap:6px;align-items:center;background:var(--surface2);border:1px solid var(--line);
+    border-radius:14px;padding:5px;}
+  button.ctl{height:52px;min-width:52px;border:none;border-radius:10px;background:transparent;color:var(--ctrl);
+    font-size:17px;font-weight:600;padding:0 12px;display:flex;align-items:center;justify-content:center;gap:7px;}
+  button.ctl:active{background:#26566a;}
+  button.ctl.wide{min-width:92px;}
+  button.ctl[aria-pressed="true"]{background:var(--amber);color:#0f2e3d;}
+  #langBtn .lbl{min-width:64px;text-align:center;}
+  .ico{font-size:22px;line-height:1;}
+  .lbl{font-size:14px;}
+  .val{font-size:13px;color:#8fb0bc;min-width:34px;text-align:center;}
+  #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--surface2);
+    border:1px solid var(--line);color:var(--ctrl);padding:9px 16px;border-radius:999px;font-size:14px;
+    opacity:0;transition:opacity .25s;pointer-events:none;z-index:20;max-width:90vw;text-align:center;}
+  #toast.show{opacity:1;}
+  .miclive{box-shadow:0 0 0 2px var(--amber) inset;}
+  /* current-position marker on the active line */
+  .sp.active{box-shadow:inset 5px 0 0 0 var(--amber);}
+  /* word-level voice progress (active line only) */
+  .w{transition:color .12s,background .12s;border-radius:5px;}
+  .sp.active .w.spoken{color:#57b39a;}                         /* recognized words */
+  .sp.active .w.cur{color:#0f2e3d;background:var(--amber);padding:0 .06em;font-weight:600;}
+  /* phrase break marker (reading aid) */
+  .brk{color:#3f6377;font-weight:400;padding:0 .12em;opacity:.85;}
+  .sp.active .brk{color:#6f93a3;}
+  .sp.read .brk{opacity:.4;}
+  /* status / progress strip */
+  #status{flex:0 0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:4px 14px 7px;background:var(--surface);border-bottom:1px solid var(--line);}
+  #stPos{font-size:13px;font-weight:700;color:#bcd2dc;white-space:nowrap;}
+  #stPos b{color:var(--amber);}
+  #bar{flex:1 1 140px;height:7px;min-width:120px;border-radius:99px;background:#0c2632;overflow:hidden;}
+  #barFill{height:100%;width:0%;background:linear-gradient(90deg,#2a9d8f,var(--amber));transition:width .25s;}
+  #stTime{font-size:13px;font-weight:600;color:#9fbdc8;white-space:nowrap;}
+  #stTime .num{color:#e7eef1;font-weight:700;}
+  #stTime .left{color:#e8a13a;font-weight:700;}
+  #stTime .ahead{color:#46c59a;font-weight:700;}
+  #stTime .behind{color:#e88a5a;font-weight:700;}
+</style>
+</head>
+<body>
+  <header>
+    <div class="title">INCOSE IS2026 · #235 — Read-aloud Prompter</div>
+    <div id="vstat" class="vstat">Voice OFF</div>
+    <div class="parts">
+      <button class="part" data-jump="p1">1</button>
+      <button class="part" data-jump="p2">2</button>
+      <button class="part" data-jump="p3">3</button>
+      <button class="part" data-jump="p4">4</button>
+    </div>
+  </header>
+  <div id="status">
+    <span id="stPos">Slide –/16 · Line –/–</span>
+    <div id="bar"><div id="barFill"></div></div>
+    <span id="stTime">–</span>
+  </div>
+  <main id="main"><div id="doc"></div></main>
+  <div class="guide" aria-hidden="true"></div>
+  <div id="toast"></div>
+  <footer>
+    <div class="grp">
+      <button class="ctl" id="fsDown" title="Smaller"><span class="ico">A−</span></button>
+      <span class="val" id="fsVal">40</span>
+      <button class="ctl" id="fsUp" title="Larger"><span class="ico">A＋</span></button>
+    </div>
+    <div class="grp">
+      <button class="ctl wide" id="play"><span class="ico">▶</span><span class="lbl">Auto</span></button>
+      <button class="ctl" id="spDown" title="Slower">−</button>
+      <span class="val" id="spVal">55</span>
+      <button class="ctl" id="spUp" title="Faster">＋</button>
+    </div>
+    <div class="grp">
+      <button class="ctl wide" id="mic"><span class="ico">🎤</span><span class="lbl">Voice</span></button>
+    </div>
+    <div class="grp">
+      <button class="ctl wide" id="langBtn"><span class="ico">🌐</span><span class="lbl" id="langLbl">EN ▸ JA</span></button>
+    </div>
+    <div class="grp">
+      <button class="ctl wide" id="autoNext" aria-pressed="true" title="Auto-advance to next section"><span class="ico">⏭</span><span class="lbl">Auto-next</span></button>
+    </div>
+    <div class="grp">
+      <button class="ctl" id="prevLn" title="Previous line">◀</button>
+      <button class="ctl" id="nextLn" title="Next line">▶</button>
+    </div>
+    <div class="grp">
+      <button class="ctl" id="top" title="Back to top / reset timer"><span class="ico">↺</span></button>
+    </div>
+  </footer>
+<script>
+(function(){
+  "use strict";
+
+  /* ============================ SCRIPT (EN + JA) ============================ */
+  var SCRIPT=[
+   {k:"sec",id:"p1",en:"PART 1 · Problem & Positioning",ja:"第1部 ・ 課題と位置づけ"},
+
+   {k:"slide",n:"1",en:"Title & Opening",ja:"タイトル・開始",t:"~0:30"},
+   {k:"sp",en:"Good afternoon, everyone. Thank you for staying with this session. My name is Kazuhiro Aoyama, from the University of Tokyo, and this is joint work with Daikin Industries. I will talk about a Multi-Domain Matrix approach for structuring and evaluating design-change impacts — in supply chains.",
+        ja:"皆様，こんにちは．本セッションにお付き合いいただきありがとうございます．東京大学の青山和浩と申します．本研究はダイキン工業との共同研究です．本日は，設計変更の影響を構造化し評価するための Multi-Domain Matrix を用いた手法を，サプライチェーンを対象にお話しします．"},
+   {k:"sp",en:"In this session we have heard change and configuration management as governance, and as a discipline that goes beyond version control. I would like to address its analytical core: how we predict and evaluate the impact of a change — and bring that into the supply-chain domain.",
+        ja:"本セッションでは，変更管理・構成管理を，組織的な統治として，またバージョン管理を超える規律として伺ってまいりました．私はその分析的な中核，すなわち変更の影響をどう予測し評価するかを，サプライチェーンの領域で取り上げたいと思います．"},
+
+   {k:"slide",n:"2",en:"Supply chains must reconfigure",ja:"再構成が求められるSC",t:"~1:30"},
+   {k:"sp",en:"Supply chains today must reconfigure quickly. Pandemics, geopolitics, and regulation have made the ability to reconfigure a real competitive advantage.",
+        ja:"今日のサプライチェーンは，迅速な再構成が求められます．パンデミック，地政学的緊張，規制の変化により，再構成できる能力そのものが競争力となりました．"},
+   {k:"sp",en:"But a single change rarely stays local. It spreads across products, facilities, suppliers, and markets — and the propagation is non-linear. A minor change can cascade, while a major one can be absorbed with little effect.",
+        ja:"しかし，一つの変更が局所に留まることは稀です．製品・拠点・サプライヤ・市場へと波及し，その伝播は非線形です．わずかな変更が連鎖する一方で，大きな変更がほとんど影響なく吸収されることもあります．"},
+   {k:"sp",en:"And today, deciding what to change, and where, still relies heavily on experience and intuition. That is the gap we want to close.",
+        ja:"そして今なお，何を，どこを変えるかは，経験と勘に大きく依存しています．本研究が埋めたいのは，この隙間です．"},
+
+   {k:"slide",n:"3",en:"Four challenges",ja:"四つの課題",t:"~1:00"},
+   {k:"sp",en:"We see four intertwined challenges. First, structural complexity: products, facilities, suppliers, and markets are densely interconnected, and conventional methods struggle to capture the full set of dependencies.",
+        ja:"私たちは，相互に絡み合う四つの課題を捉えています．第一に，構造的複雑性です．製品・拠点・サプライヤ・市場が密に結びつき，従来手法では依存関係の全体像を捉えきれません．"},
+   {k:"sp",en:"Second, impact prediction is hard, because propagation is non-linear and often counter-intuitive. Third, decisions involve conflicting objectives — cost, lead time, and environmental impact. And fourth, granularity: we need a holistic view and component-level detail at the same time.",
+        ja:"第二に，影響予測の難しさです．伝播は非線形で，しばしば直観に反します．第三に，意思決定はコスト・リードタイム・環境負荷といった相反する目的を含みます．そして第四に，粒度の問題です．全体の俯瞰と部品レベルの詳細を，同時に保つ必要があります．"},
+
+   {k:"slide",n:"4",en:"Gap & positioning",ja:"ギャップと位置づけ",t:"~1:30"},
+   {k:"sp",en:"Where do existing methods fall short? SCOR gives us a process reference and metrics, but no prediction of change impact. DSM and MDM structure complexity well, but the relationship values usually come from expert judgment.",
+        ja:"既存手法はどこが不足しているのか．SCOR はプロセスの参照モデルと指標を与えますが，変更影響の予測はできません．DSM・MDM は複雑性を構造化できますが，関係の値は多くの場合，専門家の判断に依ります．"},
+   {k:"sp",en:"The System Architecture Map, SAM, links characteristics to abilities to performance — but it was supply-chain-only, and still subjective. And change-propagation methods like the Change Prediction Method are mature at the product level, but have not been extended to supply chains.",
+        ja:"System Architecture Map，すなわち SAM は，特性・能力・性能を結びつけますが，対象はサプライチェーンに限られ，値も主観的でした．また CPM のような変更伝播手法は，製品レベルでは成熟していますが，サプライチェーンには拡張されていません．"},
+   {k:"sp",en:"So compared with the prior SAM extension, we broaden the scope to supply chain plus product architecture, we quantify with simulation instead of expert scores, and we move from a single layer to a two-layer model.",
+        ja:"そこで，従来の SAM 拡張と比べ，対象をサプライチェーンと製品アーキテクチャへ広げ，専門家の点数ではなくシミュレーションで定量化し，単層から二層モデルへと拡張します．"},
+
+   {k:"sec",id:"p2",en:"PART 2 · The Method",ja:"第2部 ・ 手法"},
+
+   {k:"slide",n:"5",en:"Performance ← Ability ← Characteristic",ja:"性能←能力←特性",t:"~2:00"},
+   {k:"sp",en:"Our first key idea is to extend SAM to supply chains as a means-ends causal chain: performance is achieved through abilities, which are driven by characteristics.",
+        ja:"第一の鍵は，SAM をサプライチェーンへ拡張し，手段と目的の因果連鎖として捉えることです．性能は能力を通じて達成され，能力は特性によって駆動されます．"},
+   {k:"sp",en:"Performance elements are the objective variables — lead time, cost, order fulfillment, and CO2. Abilities are the process-level contributions, each mapped to a SCOR Level-1 process: Make, Source, Deliver. Characteristics are the adjustable design variables.",
+        ja:"性能は，リードタイム・コスト・注文充足率・CO2 といった目的変数です．能力はプロセスレベルの寄与で，それぞれ SCOR のレベル1プロセス，すなわち Make・Source・Deliver に対応します．特性は調整可能な設計変数です．"},
+   {k:"sp",en:"And here is the point. Product-architecture decisions — part commonization, the bill of materials, facility location — enter as characteristics. So the engineering chain and the supply chain are analyzed together, in one model. That is the key novelty.",
+        ja:"ここが要点です．部品共通化や部品表，拠点配置といった製品アーキテクチャの決定が，特性として入ります．これにより，エンジニアリングチェーンとサプライチェーンを，一つのモデルで統合的に分析できます．これが最大の新規性です．"},
+
+   {k:"slide",n:"6",en:"Macro / Micro two-layer model",ja:"マクロ・ミクロ二層モデル",t:"~1:30"},
+   {k:"sp",en:"The second key idea is a two-layer model. The macro layer describes the entire supply chain — overall performance, ability, and characteristic. It is where we decide what to change, at the strategic level.",
+        ja:"第二の鍵は，二層モデルです．マクロ層はサプライチェーン全体を，全体性能・全体能力・全体特性として記述します．ここで，戦略レベルで何を変えるかを決めます．"},
+   {k:"sp",en:"The micro layer describes the chain at component granularity, part by part. It is where we decide where to change, at the operational level. The two layers are connected by aggregation, so macro analysis can narrow down the crowded micro layer — moving us from what to where.",
+        ja:"ミクロ層は，部品ごとの粒度でチェーンを記述します．ここで，運用レベルでどこを変えるかを決めます．両層は集約関係で結ばれ，マクロの分析が要素の多いミクロ層を絞り込みます．つまり，何を，から，どこへ，とつなぎます．"},
+
+   {k:"slide",n:"7",en:"Quantifying from simulation",ja:"シミュレーションによる定量化",t:"~2:00"},
+   {k:"sp",en:"How do we get the numbers? We run a multi-agent simulation — here, anyLogistix — with suppliers, producers, retailers, and logistics agents. Across many runs, we compute standardized regression and correlation to obtain impact coefficients between characteristics, abilities, and performance.",
+        ja:"数値はどう得るのか．マルチエージェントシミュレーション，ここでは anyLogistix を，サプライヤ・生産者・小売・物流のエージェントで動かします．多数の実行にわたり，標準化回帰と相関を計算し，特性・能力・性能の間の影響度係数を得ます．"},
+   {k:"sp",en:"A path impact is the product of coefficients along a path, and the total impact is the sum over all paths — a chain-rule sensitivity within the simulation operating range.",
+        ja:"経路の影響度は，経路上の係数の積であり，全体の影響度は，すべての経路にわたる総和です．これは，シミュレーションの動作範囲における連鎖律に基づく感度です．"},
+   {k:"sp",en:"One point I want to make clearly: this is a controlled simulation. The causal structure is defined by the agent rules. So correlation here measures the strength of known mechanisms; it does not claim to discover causation. We sampled 263 configurations by design of experiments, each over 365 days with ten replications.",
+        ja:"一点，明確に申し上げます．これは制御されたシミュレーションです．因果構造はエージェントの規則で定義されています．したがってここでの相関は，既知の機構の強さを測るものであり，因果を発見すると主張するものではありません．実験計画法により263構成を，それぞれ365日，10回反復で標本化しました．"},
+
+   {k:"slide",n:"8",en:"Three indices → Pareto selection",ja:"三指標→パレート選択",t:"~1:30"},
+   {k:"sp",en:"On top of this, we define three indices. The Performance Improvement index is the weighted net gain across target performances — higher is better. The Trade-off index is the weighted magnitude of the performances that degrade — lower is better. And the Change Ease index is feasibility, one over effort, where structural changes are weighted more heavily — higher is better.",
+        ja:"その上で，三つの指標を定義します．性能向上度は，対象性能にわたる重み付きの正味改善で，大きいほど良い指標です．背反度は，悪化する性能の重み付きの大きさで，小さいほど良い指標です．変更容易度は実行可能性で，労力の逆数であり，構造的な変更ほど重く評価します．大きいほど良い指標です．"},
+   {k:"sp",en:"We then take the Pareto-optimal set in these three dimensions. Non-dominated alternatives are surfaced, and the decision-maker chooses by organizational priorities — improvement, side effects, and feasibility, balanced at once.",
+        ja:"この三次元でパレート最適解を求めます．非劣解が提示され，意思決定者は組織の優先度に応じて選びます．改善・副作用・実行可能性を，同時に均衡させます．"},
+
+   {k:"slide",n:"9",en:"End-to-end workflow",ja:"全体ワークフロー",t:"~0:40"},
+   {k:"sp",en:"Putting it together: we model, simulate, and quantify; then macro analysis tells us what to change, and micro analysis tells us where. We evaluate the three indices, select from the Pareto front, and validate by comparison. If targets remain unmet, we iterate from the macro layer.",
+        ja:"全体をまとめます．モデル化し，シミュレーションし，定量化します．次にマクロ分析で何を変えるかを，ミクロ分析でどこを変えるかを示します．三つの指標で評価し，パレート前沿から選択し，比較によって検証します．目標が未達であれば，マクロ層から反復します．"},
+
+   {k:"sec",id:"p3",en:"PART 3 · Case Study & Tool",ja:"第3部 ・ ケーススタディとツール"},
+
+   {k:"slide",n:"10",en:"A two-country supply chain",ja:"二か国のSC",t:"~1:00"},
+   {k:"sp",en:"Let me show a case study: a supply chain spanning two countries. Country A produces everything domestically; Country B imports certain parts from A. The product has two variants and a fifteen-part hierarchical bill of materials. The design variables are localization, standardization, capacity, safety stock, and transport interval.",
+        ja:"ケーススタディをご覧いただきます．二か国にまたがるサプライチェーンです．A国はすべて国内で生産し，B国は一部の部品をA国から輸入します．製品は2機種で，15部品の階層的な部品表を持ちます．設計変数は，現地化・標準化・能力・安全在庫・輸送間隔です．"},
+   {k:"sp",en:"We simulated 263 configurations. The problem: Country B order fulfillment is only about 25 percent, driven by import lead times of roughly 28 days. The goal is to raise B fulfillment without quietly wrecking cost or CO2 — and we test simple fixes too.",
+        ja:"263構成をシミュレーションしました．課題は，B国の注文充足率がおよそ25％にとどまることで，約28日の輸入リードタイムが要因です．目標は，コストやCO2を密かに悪化させることなく，B国の充足率を高めることです．単純な対策も併せて検証します．"},
+
+   {k:"slide",n:"11",en:"From what to where — and choosing",ja:"何を→どこを，そして選択",t:"~1:30"},
+   {k:"sp",en:"Macro analysis points to localization as the promising direction. Micro analysis then tells us which specific parts to localize.",
+        ja:"マクロ分析は，有望な方向として現地化を示します．次にミクロ分析が，どの部品を現地化すべきかを示します．"},
+   {k:"sp",en:"Here is the discriminating moment. Alternative A1 — safety stock only — is the cheapest, and is Pareto-optimal. But validation shows only about a 15 percent improvement, missing the target. So the method does not just rubber-stamp the easy answer; it discriminates, and selects A5, complete localization.",
+        ja:"ここが識別の瞬間です．案A1，安全在庫のみは，最も安価でパレート最適です．しかし検証では改善はおよそ15％にとどまり，目標に届きません．つまり本手法は，容易な答えをそのまま追認せず，識別を行い，案A5，完全現地化を選びます．"},
+
+   {k:"slide",n:"12",en:"Result — trade-offs made explicit",ja:"結果―トレードオフの明示",t:"~1:30"},
+   {k:"sp",en:"And the result: order fulfillment improves by 2.48 times for one variant and 5.29 times for the other, both reaching nearly 100 percent. The large ratios come from very low baselines, so please do not read them as typical.",
+        ja:"結果です．注文充足率は，一方の機種で2.48倍，他方で5.29倍に改善し，いずれもほぼ100％に達しました．大きな倍率は，非常に低い初期値に由来しますので，一般的な値とは捉えないでください．"},
+   {k:"sp",en:"What matters is this. The method made the trade-offs explicit — cost up by six percent, CO2 up by 41 percent — and surfaced them transparently, rather than hiding them. So the penalties become a deliberate, informed decision. That transparency is the real contribution.",
+        ja:"重要なのはここです．本手法は，トレードオフ，すなわちコスト6％増，CO2 41％増を明示し，隠さず可視化しました．これにより，これらの代償は，意図的で情報に基づく意思決定となります．この透明性こそが，真の貢献です．"},
+
+   {k:"slide",n:"13",en:"The SC Analyzer tool",ja:"SC Analyzer ツール",t:"~1:30"},
+   {k:"sp",en:"This is not paper-only. We built an interactive tool, the SC Analyzer, on top of real anyLogistix models. On the left, you select candidate characteristics and weight the performances, and see the affected network footprint. On the right is the Transformability Pareto, in the three indices.",
+        ja:"これは論文だけのものではありません．実際の anyLogistix モデルの上に，SC Analyzer という対話型ツールを構築しました．左で候補となる特性を選び，性能に重みを与えると，影響を受けるネットワークの範囲が示されます．右は，三つの指標による Transformability のパレート図です．"},
+   {k:"sp",en:"The tool also provides PAVE and Shapley factor decomposition, macro-to-micro drill-down, a risk-scenario stress test, and an auto-generated diagnostic report. We have applied it across domestic, Japan–Thailand, and India–Africa case supply chains.",
+        ja:"ツールはさらに，PAVE と Shapley による要因分解，マクロからミクロへのドリルダウン，リスクシナリオのストレステスト，そして自動生成される診断レポートを備えます．国内，日本-タイ，インド-アフリカのケースに適用してきました．"},
+
+   {k:"sec",id:"p4",en:"PART 4 · Contributions, Close & Q&A",ja:"第4部 ・ 貢献・結び・質疑"},
+
+   {k:"slide",n:"14",en:"Contributions & positioning",ja:"貢献と位置づけ",t:"~1:00"},
+   {k:"sp",en:"To summarize the contributions: first, we extend SAM to the supply chain and integrate product architecture through structural characteristics. Second, a two-layer macro and micro framework with explicit linking. Third, simulation-based objective quantification with experimental control. And fourth, three effort-weighted indices for Pareto selection.",
+        ja:"貢献をまとめます．第一に，SAM をサプライチェーンへ拡張し，構造的特性を通じて製品アーキテクチャを統合しました．第二に，明示的な連結を持つ二層のマクロ・ミクロ枠組みです．第三に，実験計画による統制を伴う，シミュレーションに基づく客観的な定量化です．第四に，パレート選択のための，労力で重み付けした三つの指標です．"},
+   {k:"sp",en:"And to place this in our session: 435 addressed governance and tooling; 88, the fundamentals of configuration management; 326, model-level impact analysis. Ours is the supply-chain, system-level counterpart to change-impact analysis.",
+        ja:"本セッションの中での位置づけです．435は統治とツールを，88は構成管理の本質を，326はモデルレベルの影響分析を扱いました．本研究は，変更影響分析の，サプライチェーン・システムレベルの対応物です．"},
+
+   {k:"slide",n:"15",en:"Limitations & future work",ja:"限界と今後",t:"~0:50"},
+   {k:"sp",en:"We are candid about the limits: micro-layer readability at scale, subjectivity in the final Pareto selection, dependence on simulation fidelity, and the linear path approximation, whose error can compound on long paths.",
+        ja:"限界についても率直に申し上げます．大規模時のミクロ層の可読性，最終的なパレート選択の主観性，シミュレーション忠実度への依存，そして長い経路で誤差が累積しうる線形近似です．"},
+   {k:"sp",en:"For future work: real-world industrial validation; uncertainty through confidence intervals and robust optimization; non-linear handling via surrogate models; an integrated product-and-supply-chain digital twin; and temporal, phased implementation. Validity here is argued through broad design-of-experiments exploration, transparent trade-offs, bidirectional use, and the ability to discriminate among alternatives.",
+        ja:"今後の課題です．実産業での検証，信頼区間とロバスト最適化による不確実性の取り込み，代理モデルによる非線形対応，製品とサプライチェーンを統合したデジタルツイン，そして時間的・段階的な実装です．本研究の妥当性は，広い実験計画の探索，透明なトレードオフ，双方向の適用，そして代替案を識別できることによって論じています．"},
+
+   {k:"slide",n:"16",en:"Closing",ja:"結び",t:"~0:30"},
+   {k:"sp",en:"To close: our aim is to bring systems-engineering architecture rigor to supply-chain change — structured, quantified, multi-scale decision support that lets you decide what to change at the macro level, and where at the micro level, with trade-offs made explicit.",
+        ja:"結びに，本研究の狙いは，システムズエンジニアリングのアーキテクチャ的な厳密さを，サプライチェーンの変更にもたらすことです．構造化され，定量化された，多尺度の意思決定支援により，マクロで何を，ミクロでどこを変えるかを，トレードオフを明示しながら決定できます．"},
+   {k:"sp",en:"This was made possible by a five-year collaboration between the University of Tokyo and Daikin. Thank you very much for your attention. I would be glad to take your questions.",
+        ja:"これは，東京大学とダイキンによる5年間の連携があって初めて実現しました．ご清聴いただき，誠にありがとうございました．ご質問を頂ければ幸いです．"},
+
+   {k:"slide",n:"Q",en:"Q&A — anticipated (reference)",ja:"質疑応答 ― 想定問答（参考）",t:""},
+   {k:"note",en:"Q1 — Correlation vs causation?  →  It is a controlled simulation; the causal structure is defined by the agent rules, so we measure the strength of known mechanisms, not discover causation.",
+         ja:"Q1 ― 相関と因果は？ → 制御シミュレーションであり，因果構造はエージェント規則で定義されています．既知の機構の強さを測るもので，因果を発見するものではありません．"},
+   {k:"note",en:"Q2 — Scalability / cost?  →  263 DOE configurations here; for larger systems we plan surrogate models to reduce simulation cost.",
+         ja:"Q2 ― スケーラビリティ・計算コストは？ → 本研究はDOEで263構成．大規模化には代理モデルでシミュレーションコストを抑える計画です．"},
+   {k:"note",en:"Q3 — Hypothetical vs real?  →  Validity argued via broad DOE exploration, transparent trade-offs, bidirectional use, and discrimination among alternatives; the tool already runs on three case regions.",
+         ja:"Q3 ― 仮想か実問題か？ → 広いDOE探索・透明なトレードオフ・双方向適用・代替案の識別で妥当性を論証．ツールは既に三地域のケースで稼働しています．"},
+   {k:"note",en:"Q4 — Difference from Clarkson CPM?  →  We extend product-level change propagation to the supply chain, and quantify by simulation rather than expert judgment.",
+         ja:"Q4 ― Clarkson の CPM との違いは？ → 製品レベルの変更伝播をサプライチェーンへ拡張し，専門家判断ではなくシミュレーションで定量化します．"},
+   {k:"note",en:"Q5 — How does product architecture enter?  →  As a structural characteristic (e.g., part commonization), aggregated to a count variable at the macro layer.",
+         ja:"Q5 ― 製品アーキテクチャはどう入る？ → 構造的特性（例：部品共通化）として入り，マクロ層では個数変数に集約されます．"},
+   {k:"note",en:"— End of script —",ja:"― 原稿はここまで ―"}
+  ];
+
+  /* ============================ build / render ============================ */
+  var doc=document.getElementById("doc"), main=document.getElementById("main");
+  var LANG="en";                 // tracked language: "en" or "ja"
+  var els=[], spIndex=[], G=[], jumpMap={}, TYPES=[], gStart={}, blockWords={};
+  // voice-follow tuning (raised to stop premature switching)
+  var MIN_RUN=9, LOOKAHEAD=75, ENTER_MARGIN=7, RECOVER_RUN=14, REMAIN_WORDS=2;
+  // pacing / progress
+  var PACE=[], TOTAL_PLAN=0, spOrder={}, talkStart=null, statusTimer=null;
+
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // Wrap each word in a span (for voice coloring) and insert phrase-break markers
+  // at natural pauses (comma / semicolon / colon / period followed by space).
+  function isBreak(c){ return /[,，;；:：.．。]/.test(c); }
+  function renderSp(text,lang){
+    var html="", buf="";
+    function flush(){
+      if(!buf) return;
+      if(lang==="en"){
+        var ws=buf.split(/\s+/);
+        for(var i=0;i<ws.length;i++){ if(ws[i]) html+='<span class="w">'+esc(ws[i])+'</span> '; }
+      } else {
+        var seg=buf.replace(/^\s+|\s+$/g,"");
+        if(seg) html+='<span class="w">'+esc(seg)+'</span>';
+      }
+      buf="";
+    }
+    for(var i=0;i<text.length;i++){
+      var c=text[i]; buf+=c;
+      if(isBreak(c) && (i+1>=text.length || /\s/.test(text[i+1]))){
+        flush(); html+='<span class="brk">│</span> ';
+      }
+    }
+    flush();
+    return html.replace(/(\s*<span class="brk">│<\/span>\s*)+$/,"");   // drop trailing marker
+  }
+
+  function render(){
+    var prim=LANG, glos=(LANG==="en"?"ja":"en");
+    var html="";
+    SCRIPT.forEach(function(it){
+      if(it.k==="sec"){
+        html+='<div class="blk h" data-t="h" data-id="'+it.id+'">'+esc(it[prim])+'</div>';
+      } else if(it.k==="slide"){
+        var tm=it.t?' <span class="tm">['+esc(it.t)+']</span>':'';
+        html+='<div class="blk slide" data-t="slide">Slide '+esc(it.n)+' — '+esc(it[prim])+tm
+              +'<span class="j">スライド'+esc(it.n)+'：'+esc(it.ja)+'</span></div>';
+      } else if(it.k==="sp"){
+        html+='<div class="blk sp" data-t="sp">'+renderSp(it[prim],prim)+'</div>';
+        html+='<div class="blk gloss" data-t="gloss">'+esc(it[glos])+'</div>';
+      } else if(it.k==="note"){
+        html+='<div class="blk note" data-t="note">'+esc(it[prim])+'<br>'+esc(it[glos])+'</div>';
+      }
+    });
+    doc.innerHTML=html;
+    reindex();
+  }
+
+  function normalize(s){
+    if(!s) return "";
+    s=s.replace(/[Ａ-Ｚａ-ｚ０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);});
+    s=s.replace(/[\u30a1-\u30f6]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0x60);}); // katakana→hiragana
+    s=s.toLowerCase();
+    var out="";
+    for(var i=0;i<s.length;i++){
+      var c=s[i], code=s.charCodeAt(i);
+      if((c>='a'&&c<='z')||(c>='0'&&c<='9')){ out+=c; continue; }
+      if(code>=0x3041 && code<=0x3096){ out+=c; continue; }   // hiragana
+      if(code>=0x4e00 && code<=0x9fff){ out+=c; continue; }   // kanji
+    }
+    return out;
+  }
+
+  function reindex(){
+    els=Array.prototype.slice.call(doc.querySelectorAll(".blk"));
+    spIndex=[]; G=[]; jumpMap={}; TYPES=[]; gStart={}; spOrder={}; blockWords={};
+    els.forEach(function(d,i){
+      var t=d.getAttribute("data-t"); TYPES.push(t); d.dataset.i=i;
+      if(d.getAttribute("data-id")) jumpMap[d.getAttribute("data-id")]=i;
+      if(t==="sp"){
+        var wspans=d.querySelectorAll(".w"), W=[], off=0, norm="";
+        for(var wi=0;wi<wspans.length;wi++){
+          var wn=normalize(wspans[wi].textContent);
+          W.push({el:wspans[wi], ns:off, ne:off+wn.length});
+          off+=wn.length; norm+=wn;
+        }
+        blockWords[i]=W;
+        gStart[i]=G.length;                                   // first G index of this block
+        spOrder[i]=spIndex.length;                            // display order (line number)
+        for(var k=0;k<norm.length;k++) G.push({ch:norm[k],blk:i});
+        spIndex.push(i);
+        d.addEventListener("click",function(){ setActiveBlock(parseInt(this.dataset.i,10),true); });
+      }
+    });
+  }
+
+  function now(){ return Date.now(); }
+
+  var fs=40, FS_MIN=24, FS_MAX=96;
+  var speed=55, autoOn=false, rafId=null, lastTs=0;
+  var pointer=0, activeI=0;
+  var voiceOn=false, rec=null, finalBuf="", miss=0, lastAdvanceTs=0, vTimer=null;
+  var autoAdvance=true;   // auto-move to next section when few words remain (toggleable)
+
+  function applyFont(){ document.documentElement.style.setProperty("--fs",fs+"px");
+    document.getElementById("fsVal").textContent=fs; }
+
+  var FOCUS_VH=0.46, lastFocusEl=null;            // spoken word is kept at this height
+  function focusY(){ var vh=window.innerHeight||document.documentElement.clientHeight; return FOCUS_VH*vh; }
+  function scrollToEl(el,smooth){
+    if(!el) return;
+    var r=el.getBoundingClientRect(), delta=(r.top+r.height/2)-focusY();
+    if(Math.abs(delta)<2) return;
+    main.scrollBy({top:delta,behavior:(smooth===false?"auto":"smooth")});
+  }
+  function currentFocusEl(){                       // the word currently being / just spoken
+    var W=blockWords[activeI]; if(!W||!W.length) return els[activeI]||null;
+    var offset=pointer-(gStart[activeI]||0), idx=0;
+    for(var i=0;i<W.length;i++){ if(W[i].ns<=offset) idx=i; else break; }
+    return W[Math.min(idx,W.length-1)].el;
+  }
+  function trackScroll(force,smooth){
+    var el=currentFocusEl(); if(!el) return;
+    if(!force && el===lastFocusEl) return;
+    lastFocusEl=el; scrollToEl(el,smooth);
+  }
+  function centerBlock(i){ trackScroll(true,true); }   // keep name; now follows the spoken word
+  function paintActive(){
+    for(var j=0;j<spIndex.length;j++){
+      var bi=spIndex[j], el=els[bi];
+      el.classList.remove("active","read");
+      if(bi<activeI) el.classList.add("read");
+      else if(bi===activeI) el.classList.add("active");
+    }
+    // dim the gloss line under read blocks
+    els.forEach(function(el){ if(el.getAttribute("data-t")==="gloss"){
+      var prev=el.previousElementSibling;
+      el.classList.toggle("read", prev && prev.classList.contains("read"));
+    }});
+    updateStatus();
+  }
+
+  /* ---- position & remaining (pacing) ---- */
+  function parseT(t){ var m=/(\d+):(\d+)/.exec(t||""); return m?(+m[1])*60+(+m[2]):0; }
+  function buildPace(){
+    PACE=[]; TOTAL_PLAN=0;
+    var groups=[], cur=null;
+    SCRIPT.forEach(function(it){
+      if(it.k==="slide"){ cur={slide:it.n, sec:parseT(it.t), sps:0}; groups.push(cur); }
+      else if(it.k==="sp"){ if(!cur){ cur={slide:"–",sec:0,sps:0}; groups.push(cur); } cur.sps++; }
+    });
+    var acc=0;
+    groups.forEach(function(g){
+      var per=g.sps?g.sec/g.sps:0;
+      for(var i=0;i<g.sps;i++){ PACE.push({slide:g.slide,start:acc+per*i,end:acc+per*(i+1)}); }
+      acc+=g.sec;
+    });
+    TOTAL_PLAN=acc;
+  }
+  function fmt(sec){ sec=Math.max(0,Math.round(sec)); var m=Math.floor(sec/60),s=sec%60;
+    return m+":"+(s<10?"0":"")+s; }
+  var TOTAL_SLIDES=16;
+  function updateStatus(){
+    var k=spOrder[activeI]; if(k==null) k=0;
+    var n=spIndex.length||1, p=PACE[k]||{slide:"–",end:0};
+    document.getElementById("stPos").innerHTML="Slide <b>"+p.slide+"</b>/"+TOTAL_SLIDES+" · Line <b>"+(k+1)+"</b>/"+n;
+    document.getElementById("barFill").style.width=((k+1)/n*100).toFixed(1)+"%";
+    var planLeft=Math.max(0,TOTAL_PLAN-p.end);
+    var html='<span class="left">'+fmt(planLeft)+' left</span> <span style="opacity:.6">of '+fmt(TOTAL_PLAN)+'</span>';
+    if(talkStart!=null){
+      var wall=(now()-talkStart)/1000, d=wall-p.end;
+      var cls=d>5?"behind":(d<-5?"ahead":"num"), sign=d>=0?"+":"−";
+      html='<span class="num">'+fmt(wall)+'</span> · plan '+fmt(p.end)
+          +' <span class="'+cls+'">('+sign+fmt(Math.abs(d))+')</span> · '+html;
+    }
+    document.getElementById("stTime").innerHTML=html;
+  }
+  function startTimer(){ if(talkStart==null){ talkStart=now();
+      if(!statusTimer) statusTimer=setInterval(updateStatus,1000); updateStatus(); } }
+  function resetTimer(){ talkStart=null; if(statusTimer){ clearInterval(statusTimer); statusTimer=null; } updateStatus(); }
+  function setActiveBlock(i,recenter){
+    clearAllWords();
+    activeI=i; miss=0;
+    pointer=(gStart[i]!=null?gStart[i]:0);
+    lastAdvanceTs=now();
+    paintActive(); paintActiveWords();
+    if(recenter) centerBlock(i);
+  }
+
+  /* ---- voice following (ad-lib tolerant) ---- */
+  function suffixRun(end,tail){
+    var max=Math.min(end,tail.length), k=0;
+    while(k<max && G[end-1-k].ch===tail[tail.length-1-k]) k++;
+    return k;
+  }
+  function bestRun(lo,hi,tail){
+    var be=-1, br=0;
+    for(var e=lo;e<=hi;e++){ if(e<1) continue; var r=suffixRun(e,tail); if(r>br){ br=r; be=e; } }
+    return {end:be, run:br};
+  }
+  /* ---- word coloring + section transition ---- */
+  function clearWords(bi){ var W=blockWords[bi]; if(!W) return;
+    for(var i=0;i<W.length;i++) W[i].el.classList.remove("cur","spoken"); }
+  function clearAllWords(){ for(var b in blockWords) clearWords(+b); }
+  function paintActiveWords(){
+    var W=blockWords[activeI]; if(!W) return;
+    var offset=pointer-(gStart[activeI]||0);
+    for(var i=0;i<W.length;i++){ var w=W[i], cl=w.el.classList;
+      cl.remove("cur","spoken");
+      if(w.ne<=offset) cl.add("spoken");           // word fully recognized
+      else if(w.ns<offset) cl.add("cur");          // word currently being said
+    }
+  }
+  function wordsRemaining(bi,offset){ var W=blockWords[bi]; if(!W) return 0;
+    var c=0; for(var i=0;i<W.length;i++){ if(W[i].ns>=offset) c++; } return c; }
+  function nextSpBlock(bi){ var k=spOrder[bi]; return (k!=null && k<spIndex.length-1)?spIndex[k+1]:null; }
+  function advanceTo(ni,resetPointer){
+    clearWords(activeI);
+    activeI=ni;
+    if(resetPointer) pointer=gStart[ni]||0;
+    paintActive(); paintActiveWords(); centerBlock(ni);
+  }
+  function syncAfterMatch(){
+    var b=G[Math.min(pointer,G.length)-1].blk;
+    if(b<activeI){ advanceTo(b,false); return; }   // recovery relocated us backward
+    if(b>activeI){                                  // speaker jumped ahead — follow
+      var start=(gStart[b]!=null?gStart[b]:pointer);
+      if(b>activeI+1 || pointer-start>=ENTER_MARGIN){ advanceTo(b,false); return; }
+    }
+    paintActiveWords();
+    trackScroll(false,true);                        // keep the spoken word centered (continuous)
+    // when only a few words remain in the current line, move on to the next section
+    if(autoAdvance){
+      var offset=pointer-(gStart[activeI]||0);
+      if(wordsRemaining(activeI,offset) <= REMAIN_WORDS){
+        var ni=nextSpBlock(activeI);
+        if(ni!=null) advanceTo(ni,true);
+      }
+    }
+  }
+  function advance(recent){
+    if(!recent || !G.length) return;
+    var tail=recent.slice(-48);
+    // longest contiguous suffix match in a limited forward window; nearest wins on ties
+    var r=bestRun(pointer+1, Math.min(G.length,pointer+LOOKAHEAD), tail);
+    if(r.run>=MIN_RUN){ pointer=r.end; lastAdvanceTs=now(); miss=0; syncAfterMatch(); return; }
+    // recovery from a big desync: require a strong, longer match before relocating
+    miss++;
+    if(miss>=3){
+      var g=bestRun(Math.max(1,pointer-60), G.length, tail);
+      if(g.run>=RECOVER_RUN){ pointer=g.end; lastAdvanceTs=now(); miss=0; syncAfterMatch(); }
+    }
+  }
+  function updateVstat(){
+    var el=document.getElementById("vstat");
+    if(!voiceOn){ el.className="vstat"; el.textContent="Voice OFF"; return; }
+    if(now()-lastAdvanceTs<=2500){ el.className="vstat live"; el.textContent="Tracking"; }
+    else { el.className="vstat wait"; el.textContent="Waiting (ad-lib OK)"; }
+  }
+
+  function startVoice(){
+    var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ toast("This device/browser does not support voice following. Please use Auto-scroll."); return false; }
+    try{
+      rec=new SR(); rec.lang=(LANG==="ja"?"ja-JP":"en-US"); rec.continuous=true; rec.interimResults=true;
+      try{ rec.maxAlternatives=1; }catch(e){}
+      finalBuf=""; miss=0; lastAdvanceTs=now();
+      rec.onresult=function(e){
+        var interim="";
+        for(var i=e.resultIndex;i<e.results.length;i++){
+          var r=e.results[i];
+          if(r.isFinal) finalBuf+=r[0].transcript; else interim+=r[0].transcript;
+        }
+        if(finalBuf.length>600) finalBuf=finalBuf.slice(-400);
+        advance(normalize(finalBuf+interim));
+      };
+      rec.onerror=function(ev){
+        if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){
+          toast("Microphone is not allowed. Please enable mic permission."); stopVoice();
+        }
+      };
+      // iOS/iPadOS Safari ends recognition frequently (after pauses / ~1 min).
+      // Restart after a short delay, guarding against InvalidStateError on rapid restart.
+      rec.onend=function(){
+        if(!voiceOn) return;
+        setTimeout(function(){
+          if(!voiceOn||!rec) return;
+          try{ rec.start(); }catch(e){ /* already started / transient — ignore */ }
+        },300);
+      };
+      rec.start();
+      return true;
+    }catch(e){ toast("Could not start voice following."); return false; }
+  }
+  function stopVoice(){
+    voiceOn=false; finalBuf="";
+    if(vTimer){ clearInterval(vTimer); vTimer=null; }
+    var b=document.getElementById("mic");
+    b.setAttribute("aria-pressed","false"); b.classList.remove("miclive");
+    if(rec){ try{ rec.onend=null; rec.stop(); }catch(e){} rec=null; }
+    updateVstat();
+  }
+
+  function tick(ts){
+    if(!autoOn) return;
+    if(!lastTs) lastTs=ts;
+    var dt=(ts-lastTs)/1000; lastTs=ts;
+    main.scrollTop+=speed*dt;
+    if(main.scrollTop+main.clientHeight>=main.scrollHeight-2){ stopAuto(); return; }
+    rafId=requestAnimationFrame(tick);
+  }
+  function startAuto(){
+    if(voiceOn) stopVoice();
+    autoOn=true; lastTs=0; main.style.scrollBehavior="auto"; keepAwake(); startTimer();
+    var b=document.getElementById("play"); b.querySelector(".ico").textContent="⏸"; b.setAttribute("aria-pressed","true");
+    rafId=requestAnimationFrame(tick);
+  }
+  function stopAuto(){
+    autoOn=false; if(rafId) cancelAnimationFrame(rafId); rafId=null; main.style.scrollBehavior="smooth";
+    var b=document.getElementById("play"); b.querySelector(".ico").textContent="▶"; b.setAttribute("aria-pressed","false");
+  }
+
+  var wakeLock=null;
+  async function keepAwake(){ try{ if("wakeLock" in navigator){ wakeLock=await navigator.wakeLock.request("screen"); } }catch(e){} }
+  document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="visible") keepAwake(); });
+
+  var toastT=null;
+  function toast(msg){
+    var t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+    if(toastT) clearTimeout(toastT);
+    toastT=setTimeout(function(){ t.classList.remove("show"); },3800);
+  }
+
+  /* ---- controls ---- */
+  document.getElementById("fsUp").onclick=function(){ fs=Math.min(FS_MAX,fs+4); applyFont(); centerBlock(activeI); };
+  document.getElementById("fsDown").onclick=function(){ fs=Math.max(FS_MIN,fs-4); applyFont(); centerBlock(activeI); };
+  document.getElementById("spUp").onclick=function(){ speed=Math.min(180,speed+10); document.getElementById("spVal").textContent=speed; };
+  document.getElementById("spDown").onclick=function(){ speed=Math.max(10,speed-10); document.getElementById("spVal").textContent=speed; };
+  document.getElementById("play").onclick=function(){ autoOn?stopAuto():startAuto(); };
+  document.getElementById("top").onclick=function(){ stopAuto(); resetTimer(); setActiveBlock(spIndex[0],false); main.scrollTo({top:0,behavior:"smooth"}); };
+  document.getElementById("nextLn").onclick=function(){ stopAuto(); var k=spOrder[activeI]; if(k==null)k=0;
+    if(k<spIndex.length-1){ setActiveBlock(spIndex[k+1],true); startTimer(); } };
+  document.getElementById("prevLn").onclick=function(){ stopAuto(); var k=spOrder[activeI]; if(k==null)k=0;
+    if(k>0){ setActiveBlock(spIndex[k-1],true); } };
+  document.getElementById("autoNext").onclick=function(){
+    autoAdvance=!autoAdvance; this.setAttribute("aria-pressed",autoAdvance?"true":"false");
+    toast(autoAdvance ? "Auto-advance ON — moves to the next section as you finish each line."
+                      : "Auto-advance OFF — the section changes only when you start the next line (or use ▶).");
+  };
+  document.getElementById("mic").onclick=function(){
+    var b=this;
+    if(voiceOn){ stopVoice(); toast("Voice following stopped."); return; }
+    if(!window.isSecureContext){
+      toast("Voice following needs an https page (e.g., GitHub Pages). Opened as a local file, please use ▶ Auto-scroll instead.");
+      return;
+    }
+    if(autoOn) stopAuto();
+    voiceOn=true; b.setAttribute("aria-pressed","true"); b.classList.add("miclive"); keepAwake();
+    if(startVoice()){
+      startTimer();
+      vTimer=setInterval(updateVstat,400); updateVstat();
+      toast((LANG==="ja"?"音声追従を開始しました（日本語）．":"Voice following started (English). ")
+            +(LANG==="ja"?"アドリブ中は現在地を保持し，原稿に戻ると自動で追従します．ずれたら段落を軽くタップで再同期できます．"
+                          :"During ad-libs it holds position and re-syncs when you return; tap a paragraph to re-sync."));
+    } else { voiceOn=false; b.setAttribute("aria-pressed","false"); b.classList.remove("miclive"); }
+  };
+  document.getElementById("langBtn").onclick=function(){
+    var keep=activeI;
+    LANG=(LANG==="en"?"ja":"en");
+    document.getElementById("langLbl").textContent=(LANG==="en"?"EN ▸ JA":"JA ▸ EN");
+    render();
+    setActiveBlock((keep && keep<els.length)?keep:spIndex[0], true);
+    if(voiceOn){ stopVoice(); voiceOn=true;
+      var b=document.getElementById("mic"); b.setAttribute("aria-pressed","true"); b.classList.add("miclive");
+      startVoice(); vTimer=setInterval(updateVstat,400);
+    }
+    toast(LANG==="en"?"Reading language: English (voice → en-US). Japanese shown below as a gloss."
+                     :"読み上げ言語：日本語（音声 → ja-JP）．英語を下に併記します．");
+  };
+  Array.prototype.forEach.call(document.querySelectorAll(".part"),function(p){
+    p.onclick=function(){
+      stopAuto();
+      var idx=jumpMap[this.dataset.jump]; if(idx==null) return;
+      var firstSp=idx;
+      for(var k=idx+1;k<TYPES.length;k++){ if(TYPES[k]==="sp"){ firstSp=k; break; } }
+      setActiveBlock(firstSp,false);
+      els[idx].scrollIntoView({behavior:"smooth",block:"start"});
+    };
+  });
+
+  /* ---- init ---- */
+  applyFont();
+  render();
+  buildPace();
+  setActiveBlock(spIndex[0],false);
+  keepAwake();
+  setTimeout(function(){
+    var ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    toast(ios
+      ? "iPad: tap ⛶ Share → Add to Home Screen for full screen. ▶ Auto-scroll always works; 🎤 Voice needs an https page. A−/A＋ size · 🌐 EN⇄日本語."
+      : "Tip: A−/A＋ for size. Use Auto-scroll or 🎤 Voice to read. 🌐 toggles English ⇄ 日本語.");
+  },800);
+})();
+</script>
+</body>
+</html>
